@@ -79,7 +79,8 @@ class Xsdk(BundlePackage):
                when='@0.3.0 +trilinos')
 
     depends_on('datatransferkit@master', when='@develop +trilinos +datatransferkit')
-    depends_on('datatransferkit@3.1-rc3', when='@0.7.0 +trilinos +datatransferkit')
+    dtk7ver = '3.1-rc2' if sys.platform == 'darwin' else '3.1-rc3'
+    depends_on('datatransferkit@'+dtk7ver, when='@0.7.0 +trilinos +datatransferkit')
     depends_on('datatransferkit@3.1-rc2', when='@0.6.0 +trilinos +datatransferkit')
 
     depends_on('petsc +trilinos', when='+trilinos @:0.6.0')
