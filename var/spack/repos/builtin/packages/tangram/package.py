@@ -13,7 +13,7 @@ class Tangram(CMakePackage):
     """
 
     homepage = "https://portage.lanl.gov"
-    git      = "https://github.com/laristra/tangram.git"
+    git      = "git@github.com:laristra/tangram.git"
     url      = "https://github.com/laristra/tangram/releases/download/1.0.5/tangram-1.0.5.tar.gz"
 
     maintainers = ['raovgarimella']
