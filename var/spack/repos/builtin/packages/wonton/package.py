@@ -17,7 +17,7 @@ class Wonton(CMakePackage):
     """
 
     homepage = "https://portage.lanl.gov"
-    git      = "https://github.com/laristra/wonton.git"
+    git      = "git@github.com:laristra/wonton.git"
     url  = "https://github.com/laristra/wonton/releases/download/1.2.11/wonton-1.2.11.tar.gz"
 
     maintainers = ['raovgarimella']
