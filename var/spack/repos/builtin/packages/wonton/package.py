@@ -4,7 +4,7 @@
 # SPDX-License-Identifier: (Apache-2.0 OR MIT)
 
 from spack import *
-#from spack.pkg.builtin.boost import Boost
+from spack.pkg.builtin.boost import Boost
 
 
 class Wonton(CMakePackage):
@@ -17,7 +17,7 @@ class Wonton(CMakePackage):
     """
 
     homepage = "https://portage.lanl.gov"
-    git      = "git@github.com:laristra/wonton.git"
+    git      = "https://github.com/laristra/wonton.git"
     url  = "https://github.com/laristra/wonton/releases/download/1.2.11/wonton-1.2.11.tar.gz"
 
     maintainers = ['raovgarimella']
@@ -61,7 +61,7 @@ class Wonton(CMakePackage):
     # TODO: replace this with an explicit list of components of Boost,
     # for instance depends_on('boost +filesystem')
     # See https://github.com/spack/spack/pull/22303 for reference
-    #depends_on(Boost.with_default_variants, when='@:1.2.10 ~thrust')
+    depends_on(Boost.with_default_variants, when='@:1.2.10 ~thrust')
 
     # CUDA library
     depends_on('cuda', when='+cuda')
