@@ -13,7 +13,7 @@ class Portage(CMakePackage):
        remapping library for transfer of field data between meshes.
     """
     homepage = "https://portage.lanl.gov/"
-    git      = "git@github.com:laristra/portage.git"
+    git      = "https://github.com/laristra/portage.git"
     url      = "https://github.com/laristra/portage/releases/download/3.0.0/portage-3.0.0.tar.gz"
 
     maintainers = ['raovgarimella']
