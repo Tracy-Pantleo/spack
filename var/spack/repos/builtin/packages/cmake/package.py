@@ -10,6 +10,8 @@ import sys
 import spack.build_environment
 from spack import *
 
+is_windows = sys.platform == 'win32'
+
 
 class Cmake(Package):
     """A cross-platform, open-source build system. CMake is a family of
@@ -157,8 +159,7 @@ class Cmake(Package):
     variant('ownlibs', default=True,  description='Use CMake-provided third-party libraries')
     variant('qt',      default=False, description='Enables the build of cmake-gui')
     variant('doc',     default=False, description='Enables the generation of html and man page documentation')
-    variant('openssl', default=True,  description="Enable openssl for curl bootstrapped by CMake when using +ownlibs")
-    variant('ncurses', default=os.name != 'nt',  description='Enables the build of the ncurses gui')
+    variant('ncurses', default=not is_windows, description='Enables the build of the ncurses gui')
 
     # See https://gitlab.kitware.com/cmake/cmake/-/issues/21135
     conflicts('%gcc platform=darwin', when='@:3.17',
@@ -171,31 +172,33 @@ class Cmake(Package):
     conflicts('+ownlibs %nvhpc')
     conflicts('+ncurses %nvhpc')
 
-    # Really this should conflict since it's enabling or disabling openssl for
-    # CMake's internal copy of curl.  Ideally we'd want a way to have the
-    # openssl variant disabled when ~ownlibs but there's not really a way to
-    # tie the values of those togethor, so for now we're just going to ignore
-    # the openssl variant entirely when ~ownlibs
-    # conflicts('~ownlibs', when='+openssl')
+    with when('~ownlibs'):
+        depends_on('curl')
+        depends_on('expat')
+        depends_on('zlib')
+        # expat/zlib are used in CMake/CTest, so why not require them in libarchive.
+        depends_on('libarchive@3.1.0: xar=expat compression=zlib')
+        depends_on('libarchive@3.3.3:', when='@3.15.0:')
+        depends_on('libuv@1.0.0:1.10', when='@3.7.0:3.10.3')
+        depends_on('libuv@1.10.0:1.10', when='@3.11.0:3.11')
+        depends_on('libuv@1.10.0:', when='@3.12.0:')
+        depends_on('rhash', when='@3.8.0:')
 
-    depends_on('curl',           when='~ownlibs')
-    depends_on('expat',          when='~ownlibs')
-    depends_on('zlib',           when='~ownlibs')
-    depends_on('bzip2',          when='~ownlibs')
-    depends_on('xz',             when='~ownlibs')
-    depends_on('libarchive@3.1.0:', when='~ownlibs')
-    depends_on('libarchive@3.3.3:',     when='@3.15.0:~ownlibs')
-    depends_on('libuv@1.0.0:1.10',   when='@3.7.0:3.10.3~ownlibs')
-    depends_on('libuv@1.10.0:1.10',  when='@3.11.0:3.11~ownlibs')
-    depends_on('libuv@1.10.0:',  when='@3.12.0:~ownlibs')
-    depends_on('rhash',          when='@3.8.0:~ownlibs')
-    depends_on('qt',             when='+qt')
-    depends_on('python@2.7.11:', when='+doc', type='build')
-    depends_on('py-sphinx',      when='+doc', type='build')
-    depends_on('openssl', when='+openssl+ownlibs')
-    depends_on('openssl@:1.0', when='@:3.6.9+openssl+ownlibs')
-    depends_on('ncurses',        when='+ncurses')
+    for plat in ['darwin', 'linux', 'cray']:
+        with when('+ownlibs platform=%s' % plat):
+            depends_on('openssl')
+            depends_on('openssl@:1.0', when='@:3.6.9')
 
+    depends_on('qt', when='+qt')
+    depends_on('ncurses', when='+ncurses')
+
+    with when('+doc'):
+        depends_on('python@2.7.11:', type='build')
+        depends_on('py-sphinx', type='build')
+
+    # TODO: update curl package to build with Windows SSL implementation
+    # at which point we can build with +ownlibs on Windows
+    conflicts('~ownlibs', when='platform=windows')
     # Cannot build with Intel, should be fixed in 3.6.2
     # https://gitlab.kitware.com/cmake/cmake/issues/16226
     patch('intel-c-gnu11.patch', when='@3.6.0:3.6.1')
@@ -268,7 +271,7 @@ class Cmake(Package):
 
     def setup_build_environment(self, env):
         spec = self.spec
-        if '+openssl' in spec:
+        if '+ownlibs' in spec and 'platform=windows' not in spec:
             env.set('OPENSSL_ROOT_DIR', spec['openssl'].prefix)
 
     def bootstrap_args(self):
@@ -317,10 +320,13 @@ class Cmake(Package):
         # inside a ctest environment
         args.append('-DCMake_TEST_INSTALL=OFF')
 
-        # When building our own private copy of curl then we need to properly
-        # enable / disable oepnssl
+        # When building our own private copy of curl we still require an
+        # external openssl.
         if '+ownlibs' in spec:
-            args.append('-DCMAKE_USE_OPENSSL=%s' % str('+openssl' in spec))
+            if 'platform=windows' in spec:
+                args.append('-DCMAKE_USE_OPENSSL=OFF')
+            else:
+                args.append('-DCMAKE_USE_OPENSSL=ON')
 
         args.append('-DBUILD_CursesDialog=%s' % str('+ncurses' in spec))
 
@@ -328,7 +334,7 @@ class Cmake(Package):
         rpaths = spack.build_environment.get_rpaths(self)
         prefixes = spack.build_environment.get_cmake_prefix_path(self)
         args.extend([
-            '-DCMAKE_INSTALL_RPATH_USE_LINK_PATH=OFF',
+            '-DCMAKE_INSTALL_RPATH_USE_LINK_PATH=ON',
             '-DCMAKE_INSTALL_RPATH={0}'.format(";".join(str(v) for v in rpaths)),
             '-DCMAKE_PREFIX_PATH={0}'.format(";".join(str(v) for v in prefixes))
         ])
@@ -343,7 +349,6 @@ class Cmake(Package):
     def bootstrap(self, spec, prefix):
         bootstrap_args = self.bootstrap_args()
         if sys.platform == 'win32':
-            # self.winbootcmake(spec)
             bootstrap = self.cmake_bootstrap()
             bootstrap_args.extend(['.'])
         else:
